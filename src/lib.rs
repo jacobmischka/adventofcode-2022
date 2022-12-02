@@ -1,5 +1,7 @@
 use std::io::{self, Read, Result};
 
+pub mod days;
+
 pub fn get_input() -> Result<String> {
     let mut s = String::new();
     let stdin = io::stdin();

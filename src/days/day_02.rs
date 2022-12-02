@@ -1,8 +1,6 @@
-use adventofcode_2022::get_input;
 use std::str::FromStr;
 
-fn main() {
-    let input = get_input().unwrap();
+pub fn main(input: &str) -> (u32, u32) {
     let mut score1 = 0;
     let mut score2 = 0;
     for line in input.lines() {
@@ -10,8 +8,7 @@ fn main() {
         score2 += score_round_advanced(&line);
     }
 
-    println!("Part 1: {score1}");
-    println!("Part 2: {score2}");
+    (score1, score2)
 }
 
 fn score_round_naive(line: &str) -> u32 {

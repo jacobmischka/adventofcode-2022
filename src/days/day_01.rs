@@ -1,8 +1,4 @@
-use adventofcode_2022::get_input;
-
-fn main() {
-    let input = get_input().unwrap();
-
+pub fn main(input: &str) -> (u32, u32) {
     let mut cals_counts: Vec<u32> = Vec::new();
     let mut current_sum: u32 = 0;
     for line in input.lines() {
@@ -19,9 +15,8 @@ fn main() {
     cals_counts.push(current_sum);
     cals_counts.sort_by(|a, b| b.cmp(&a));
 
-    println!("Part 1: {}", cals_counts[0]);
-    println!(
-        "Part 2: {}",
-        cals_counts[0] + cals_counts[1] + cals_counts[2]
-    );
+    (
+        cals_counts[0],
+        cals_counts[0] + cals_counts[1] + cals_counts[2],
+    )
 }
