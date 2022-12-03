@@ -16,6 +16,7 @@ fn main() {
     let results = match day {
         1 => days::day_01::main(&input),
         2 => days::day_02::main(&input),
+        3 => days::day_03::main(&input),
         _ => panic!("unsupported day {day}"),
     };
 
