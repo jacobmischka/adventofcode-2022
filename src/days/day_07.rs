@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use std::collections::{HashMap, HashSet};
 
 const TOTAL_DISK_SIZE: u32 = 70000000;
