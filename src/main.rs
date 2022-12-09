@@ -12,16 +12,18 @@ fn main() {
         .parse()
         .unwrap();
     let input = get_input().unwrap();
+    let trimmed = input.trim();
 
     let results = match day {
-        1 => stringify_u32(days::day_01::main(&input)),
-        2 => stringify_u32(days::day_02::main(&input)),
-        3 => stringify_u32(days::day_03::main(&input)),
-        4 => stringify_u32(days::day_04::main(&input)),
-        5 => days::day_05::main(&input),
-        6 => stringify_u32(days::day_06::main(&input)),
-        7 => stringify_u32(days::day_07::main(&input)),
-        8 => stringify_u32(days::day_08::main(&input)),
+        1 => stringify_u32(days::day_01::main(trimmed)),
+        2 => stringify_u32(days::day_02::main(trimmed)),
+        3 => stringify_u32(days::day_03::main(trimmed)),
+        4 => stringify_u32(days::day_04::main(trimmed)),
+        5 => days::day_05::main(trimmed),
+        6 => stringify_u32(days::day_06::main(trimmed)),
+        7 => stringify_u32(days::day_07::main(trimmed)),
+        8 => stringify_u32(days::day_08::main(trimmed)),
+        9 => stringify_u32(days::day_09::main(trimmed)),
         _ => panic!("unsupported day {day}"),
     };
 
