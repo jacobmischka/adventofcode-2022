@@ -25,6 +25,7 @@ fn main() {
         8 => stringify_u32(days::day_08::main(trimmed)),
         9 => stringify_u32(days::day_09::main(trimmed)),
         10 => days::day_10::main(trimmed),
+        11 => stringify_u64(days::day_11::main(trimmed)),
         _ => panic!("unsupported day {day}"),
     };
 
@@ -33,6 +34,10 @@ fn main() {
 }
 
 fn stringify_u32(int_results: (u32, u32)) -> (String, String) {
+    (int_results.0.to_string(), int_results.1.to_string())
+}
+
+fn stringify_u64(int_results: (u64, u64)) -> (String, String) {
     (int_results.0.to_string(), int_results.1.to_string())
 }
 
