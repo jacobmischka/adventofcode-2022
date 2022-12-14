@@ -1,12 +1,11 @@
-use std::{
-    fmt::{Debug, Display},
-    ops::{Add, Sub},
-};
+use std::fmt::{Debug, Display};
+
+use crate::Coord;
 
 pub fn main(input: &str) -> (u32, u32) {
-    let mut start: Option<Coord> = None;
-    let mut end: Option<Coord> = None;
-    let mut lowest: Vec<Coord> = Vec::new();
+    let mut start: Option<Coord<usize>> = None;
+    let mut end: Option<Coord<usize>> = None;
+    let mut lowest: Vec<Coord<usize>> = Vec::new();
 
     let elevations: Vec<Vec<char>> = input
         .lines()
@@ -66,7 +65,7 @@ pub fn main(input: &str) -> (u32, u32) {
     )
 }
 
-fn spread(height_map: &TopMap<char>, dist_map: &mut TopMap<Option<u32>>, pos: Coord) {
+fn spread(height_map: &TopMap<char>, dist_map: &mut TopMap<Option<u32>>, pos: Coord<usize>) {
     let current_height = match height_map.get_pos(pos) {
         'S' => 'a',
         'E' => 'z',
@@ -120,7 +119,7 @@ fn check_coord(
     dist_map: &mut TopMap<Option<u32>>,
     current_height: char,
     current_dist: u32,
-    new_coord: Coord,
+    new_coord: Coord<usize>,
 ) {
     let height = match height_map.get_pos(new_coord) {
         'S' => 'a',
@@ -136,34 +135,17 @@ fn check_coord(
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct Coord(usize, usize);
-
-impl Sub for Coord {
-    type Output = Coord;
-    fn sub(self, rhs: Self) -> Self::Output {
-        Coord(self.0 - rhs.0, self.1 - rhs.1)
-    }
-}
-
-impl Add for Coord {
-    type Output = Coord;
-    fn add(self, rhs: Self) -> Self::Output {
-        Coord(self.0 + rhs.0, self.1 + rhs.1)
-    }
-}
-
 #[derive(Clone)]
 struct TopMap<T: Clone> {
     coords: Vec<Vec<T>>,
 }
 
 impl<T: Copy> TopMap<T> {
-    fn get_pos(&self, pos: Coord) -> T {
+    fn get_pos(&self, pos: Coord<usize>) -> T {
         self.coords[pos.1][pos.0]
     }
 
-    fn set_pos(&mut self, pos: Coord, val: T) {
+    fn set_pos(&mut self, pos: Coord<usize>, val: T) {
         self.coords[pos.1][pos.0] = val;
     }
 }
