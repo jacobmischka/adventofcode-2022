@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Display, str::FromStr};
 
-use crate::Coord;
+use crate::coord::Coord;
 
 const SAND_SPAWN: Coord<i32> = Coord(500, 0);
 

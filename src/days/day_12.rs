@@ -1,6 +1,6 @@
 use std::fmt::{Debug, Display};
 
-use crate::Coord;
+use crate::coord::Coord;
 
 pub fn main(input: &str) -> (u32, u32) {
     let mut start: Option<Coord<usize>> = None;
