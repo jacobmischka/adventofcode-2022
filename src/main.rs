@@ -30,6 +30,7 @@ fn main() {
         13 => stringify_u32(days::day_13::main(trimmed)),
         14 => stringify_u32(days::day_14::main(trimmed)),
         15 => stringify_u64(days::day_15::main(trimmed)),
+        16 => stringify_u32(days::day_16::main(trimmed)),
         _ => panic!("unsupported day {day}"),
     };
 
