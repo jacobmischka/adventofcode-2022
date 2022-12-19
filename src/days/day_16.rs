@@ -121,14 +121,28 @@ fn max_pressure_inner<'input>(
         return max;
     }
 
-    if let Ok(cache) = cache.read() {
-        if let Some(val) = cache.get(&(
+    let cache_key = if let Some(elephant) = elephant {
+        let min = you.valve.min(elephant.valve);
+        let max = you.valve.max(elephant.valve);
+        (
+            open.clone(),
+            current_pressure,
+            time_remaining,
+            min,
+            Some(max),
+        )
+    } else {
+        (
             open.clone(),
             current_pressure,
             time_remaining,
             you.valve,
-            elephant.map(|e| e.valve),
-        )) {
+            None,
+        )
+    };
+
+    if let Ok(cache) = cache.read() {
+        if let Some(val) = cache.get(&cache_key) {
             return *val;
         }
     }
@@ -164,7 +178,7 @@ fn max_pressure_inner<'input>(
                 .fold(
                     || max,
                     |max, valve| {
-                        if valve == you.prev {
+                        if valve == you.prev || Some(valve.as_str()) == elephant.map(|e| e.valve) {
                             return max;
                         }
 
@@ -241,18 +255,10 @@ fn max_pressure_inner<'input>(
 
     if let Ok(mut cache) = cache.write() {
         cache
-            .entry((
-                open,
-                current_pressure,
-                time_remaining,
-                you.valve,
-                elephant.map(|e| e.valve),
-            ))
+            .entry(cache_key)
             .and_modify(|prev| {
                 if max >= *prev {
                     *prev = max;
-                } else {
-                    dbg!(max, prev);
                 }
             })
             .or_insert(max);
