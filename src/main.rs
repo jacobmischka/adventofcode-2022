@@ -33,6 +33,7 @@ fn main() {
         16 => stringify_u32(days::day_16::main(trimmed)),
         17 => stringify_u64(days::day_17::main(trimmed)),
         18 => stringify_u32(days::day_18::main(trimmed)),
+        20 => stringify_i64(days::day_20::main(trimmed)),
         _ => panic!("unsupported day {day}"),
     };
 
@@ -45,6 +46,15 @@ fn stringify_u32(int_results: (u32, u32)) -> (String, String) {
 }
 
 fn stringify_u64(int_results: (u64, u64)) -> (String, String) {
+    (int_results.0.to_string(), int_results.1.to_string())
+}
+
+#[allow(unused)]
+fn stringify_i32(int_results: (i32, i32)) -> (String, String) {
+    (int_results.0.to_string(), int_results.1.to_string())
+}
+
+fn stringify_i64(int_results: (i64, i64)) -> (String, String) {
     (int_results.0.to_string(), int_results.1.to_string())
 }
 
