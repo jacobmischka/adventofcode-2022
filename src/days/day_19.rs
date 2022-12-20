@@ -11,24 +11,51 @@ pub fn main(input: &str) -> (u32, u32) {
         .map(|line| Blueprint::from_str(line).unwrap())
         .collect();
 
-    dbg!(&blueprints);
+    let mut p1 = 0;
+    for blueprint in &blueprints {
+        let max = RefCell::new(Inventory::default());
+        test_blueprint(
+            &max,
+            blueprint,
+            Inventory::default(),
+            Inventory {
+                ore: 1,
+                ..Inventory::default()
+            },
+            Inventory::default(),
+            24,
+        );
+        let max = max.into_inner();
+        p1 += max.geodes * blueprint.id;
+    }
 
-    let max = RefCell::new(Inventory::default());
-    test_blueprint(
-        &max,
-        &blueprints[1],
-        Inventory::default(),
-        Inventory {
-            ore: 1,
-            ..Inventory::default()
-        },
-        Inventory::default(),
-        24,
-    );
-    let max = max.into_inner();
-    dbg!(max);
+    let mut p2 = 1;
+    for blueprint in blueprints.iter().take(3) {
+        let max = RefCell::new(Inventory::default());
+        test_blueprint(
+            &max,
+            blueprint,
+            Inventory::default(),
+            Inventory {
+                ore: 1,
+                ..Inventory::default()
+            },
+            Inventory::default(),
+            32,
+        );
+        let max = max.into_inner();
+        p2 *= max.geodes;
+    }
 
-    (0, 0)
+    (p1, p2)
+}
+
+fn possible_generated(robots: u32, minutes_remaining: u32) -> u32 {
+    if minutes_remaining == 0 {
+        0
+    } else {
+        robots + possible_generated(robots + 1, minutes_remaining - 1)
+    }
 }
 
 fn test_blueprint(
@@ -39,13 +66,20 @@ fn test_blueprint(
     new_robots: Inventory,
     minutes_remaining: u32,
 ) {
+    let current_max = max.borrow().clone();
     if minutes_remaining == 0 {
-        let current_max = max.borrow().clone();
         if inventory.geodes > current_max.geodes {
-            dbg!(inventory, robots);
             max.replace(inventory);
         }
     } else {
+        if (robots.obsidian < blueprint.geode_robot_cost.obsidian
+            || robots.ore < blueprint.geode_robot_cost.ore)
+            && (inventory.geodes + possible_generated(robots.geodes, minutes_remaining)
+                < current_max.geodes)
+        {
+            return;
+        }
+
         if minutes_remaining > 1 {
             if new_robots.is_empty() && blueprint.geode_robot_cost <= inventory {
                 test_blueprint(
@@ -62,7 +96,10 @@ fn test_blueprint(
                 );
             }
 
-            if new_robots.is_empty() && blueprint.obsidian_robot_cost <= inventory {
+            if new_robots.is_empty()
+                && blueprint.obsidian_robot_cost <= inventory
+                && robots.obsidian < blueprint.geode_robot_cost.obsidian
+            {
                 test_blueprint(
                     max,
                     blueprint,
@@ -77,7 +114,10 @@ fn test_blueprint(
                 );
             }
 
-            if new_robots.is_empty() && blueprint.clay_robot_cost <= inventory {
+            if new_robots.is_empty()
+                && blueprint.clay_robot_cost <= inventory
+                && robots.clay < blueprint.obsidian_robot_cost.clay
+            {
                 test_blueprint(
                     max,
                     blueprint,
@@ -92,7 +132,16 @@ fn test_blueprint(
                 );
             }
 
-            if new_robots.is_empty() && blueprint.ore_robot_cost <= inventory {
+            if new_robots.is_empty()
+                && blueprint.ore_robot_cost <= inventory
+                && robots.ore
+                    < blueprint
+                        .ore_robot_cost
+                        .ore
+                        .max(blueprint.clay_robot_cost.ore)
+                        .max(blueprint.obsidian_robot_cost.ore)
+                        .max(blueprint.geode_robot_cost.ore)
+            {
                 test_blueprint(
                     max,
                     blueprint,
