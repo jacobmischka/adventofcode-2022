@@ -1,4 +1,5 @@
 use std::{
+    cell::RefCell,
     cmp::Ordering,
     ops::{Add, AddAssign, Sub, SubAssign},
     str::FromStr,
@@ -10,99 +11,112 @@ pub fn main(input: &str) -> (u32, u32) {
         .map(|line| Blueprint::from_str(line).unwrap())
         .collect();
 
-    dbg!(test_blueprint(
-        &blueprints[0],
+    dbg!(&blueprints);
+
+    let max = RefCell::new(Inventory::default());
+    test_blueprint(
+        &max,
+        &blueprints[1],
         Inventory::default(),
         Inventory {
             ore: 1,
             ..Inventory::default()
         },
-        24
-    ));
-
-    // let total_quality_level = blueprints.iter().fold(0, |acc, blueprint| {
-    //     acc + blueprint.id
-    //         * test_blueprint(
-    //             blueprint,
-    //             Inventory::default(),
-    //             Inventory {
-    //                 ore: 1,
-    //                 ..Default::default()
-    //             },
-    //             24,
-    //         )
-    //         .geodes
-    // });
+        Inventory::default(),
+        24,
+    );
+    let max = max.into_inner();
+    dbg!(max);
 
     (0, 0)
 }
 
 fn test_blueprint(
+    max: &RefCell<Inventory>,
     blueprint: &Blueprint,
-    mut inventory: Inventory,
-    mut robots: Inventory,
-    mut minutes_remaning: u32,
-) -> Inventory {
-    dbg!(blueprint);
+    inventory: Inventory,
+    robots: Inventory,
+    new_robots: Inventory,
+    minutes_remaining: u32,
+) {
+    if minutes_remaining == 0 {
+        let current_max = max.borrow().clone();
+        if inventory.geodes > current_max.geodes {
+            dbg!(inventory, robots);
+            max.replace(inventory);
+        }
+    } else {
+        if minutes_remaining > 1 {
+            if new_robots.is_empty() && blueprint.geode_robot_cost <= inventory {
+                test_blueprint(
+                    max,
+                    blueprint,
+                    inventory - blueprint.geode_robot_cost,
+                    robots,
+                    new_robots
+                        + Inventory {
+                            geodes: 1,
+                            ..Default::default()
+                        },
+                    minutes_remaining,
+                );
+            }
 
-    let mut i = 1;
-    while minutes_remaning > 0 {
-        eprintln!("== Minute {i} ==");
-        let mut new_robots = Inventory::default();
+            if new_robots.is_empty() && blueprint.obsidian_robot_cost <= inventory {
+                test_blueprint(
+                    max,
+                    blueprint,
+                    inventory - blueprint.obsidian_robot_cost,
+                    robots,
+                    new_robots
+                        + Inventory {
+                            obsidian: 1,
+                            ..Default::default()
+                        },
+                    minutes_remaining,
+                );
+            }
 
-        while blueprint.geode_robot_cost <= inventory {
-            inventory -= blueprint.geode_robot_cost;
-            new_robots.geodes += 1;
-            eprintln!("build 1 geode robot for {:?})", blueprint.geode_robot_cost);
-            eprintln!("you have {:?}", &inventory);
+            if new_robots.is_empty() && blueprint.clay_robot_cost <= inventory {
+                test_blueprint(
+                    max,
+                    blueprint,
+                    inventory - blueprint.clay_robot_cost,
+                    robots,
+                    new_robots
+                        + Inventory {
+                            clay: 1,
+                            ..Default::default()
+                        },
+                    minutes_remaining,
+                );
+            }
+
+            if new_robots.is_empty() && blueprint.ore_robot_cost <= inventory {
+                test_blueprint(
+                    max,
+                    blueprint,
+                    inventory - blueprint.ore_robot_cost,
+                    robots,
+                    new_robots
+                        + Inventory {
+                            ore: 1,
+                            ..Default::default()
+                        },
+                    minutes_remaining,
+                );
+            }
         }
 
-        while blueprint.obsidian_robot_cost <= inventory
-            && inventory.obsidian + robots.obsidian < blueprint.geode_robot_cost.obsidian
-        {
-            inventory -= blueprint.obsidian_robot_cost;
-            new_robots.obsidian += 1;
-            eprintln!(
-                "build 1 obsidian robot for {:?}",
-                blueprint.obsidian_robot_cost
-            );
-            eprintln!("you have {:?}", &inventory);
-        }
-
-        while blueprint.clay_robot_cost <= inventory
-            && inventory.clay
-                + robots.clay * ((blueprint.obsidian_robot_cost.ore - inventory.ore) / robots.ore)
-                < blueprint.obsidian_robot_cost.clay
-        {
-            inventory -= blueprint.clay_robot_cost;
-            new_robots.clay += 1;
-            eprintln!("build 1 clay robot for {:?}", blueprint.clay_robot_cost);
-            eprintln!("you have {:?}", &inventory);
-        }
-
-        while blueprint.ore_robot_cost <= inventory
-            && inventory.ore + robots.ore < blueprint.ore_robot_cost.ore
-        {
-            inventory -= blueprint.ore_robot_cost;
-            new_robots.ore += 1;
-            eprintln!("build 1 ore robot for {:?}", blueprint.ore_robot_cost);
-            eprintln!("you have {:?}", &inventory);
-        }
-
-        inventory += robots;
-
-        eprintln!("robots gather {:?}", &robots);
-        eprintln!("you have {:?}", &inventory);
-
-        robots += new_robots;
-
-        minutes_remaning -= 1;
-        i += 1;
-
-        eprintln!();
+        test_blueprint(
+            max,
+            blueprint,
+            inventory + robots,
+            robots + new_robots,
+            Inventory::default(),
+            minutes_remaining - 1,
+        );
     }
-
-    inventory
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -111,6 +125,12 @@ struct Inventory {
     clay: u32,
     obsidian: u32,
     geodes: u32,
+}
+
+impl Inventory {
+    fn is_empty(self) -> bool {
+        self.ore == 0 && self.clay == 0 && self.obsidian == 0 && self.geodes == 0
+    }
 }
 
 impl Ord for Inventory {
