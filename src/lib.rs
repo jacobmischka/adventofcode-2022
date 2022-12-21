@@ -2,6 +2,7 @@ use std::io::{self, Read};
 
 mod coord;
 pub mod days;
+mod operation;
 mod range;
 
 pub fn get_input() -> io::Result<String> {

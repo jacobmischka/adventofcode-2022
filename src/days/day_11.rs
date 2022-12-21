@@ -1,5 +1,7 @@
 use std::str::FromStr;
 
+use crate::operation::Operation;
+
 pub fn main(input: &str) -> (u64, u64) {
     let monkeys: Vec<Monkey> = input
         .split("\n\n")
@@ -116,32 +118,6 @@ impl FromStr for Value {
         match s.parse::<u64>() {
             Ok(val) => Ok(Value::Literal(val)),
             _ => Ok(Value::Variable(s.to_string())),
-        }
-    }
-}
-
-enum Operation {
-    Add,
-    Multiply,
-}
-
-impl Operation {
-    fn perform(&self, lhs: u64, rhs: u64) -> u64 {
-        match self {
-            Operation::Add => lhs + rhs,
-            Operation::Multiply => lhs * rhs,
-        }
-    }
-}
-
-impl FromStr for Operation {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "+" => Ok(Operation::Add),
-            "*" => Ok(Operation::Multiply),
-            s => Err(format!("invalid operation {s}")),
         }
     }
 }
