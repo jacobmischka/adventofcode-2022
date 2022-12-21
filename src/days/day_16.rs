@@ -37,7 +37,6 @@ pub fn main(input: &str) -> (u32, u32) {
         &flows,
         &tunnels,
         BTreeSet::new(),
-        0,
         30,
         ValvePosition {
             valve: "AA",
@@ -50,7 +49,6 @@ pub fn main(input: &str) -> (u32, u32) {
         &flows,
         &tunnels,
         BTreeSet::new(),
-        0,
         26,
         ValvePosition {
             valve: "AA",
@@ -71,23 +69,13 @@ struct ValvePosition<'input> {
     valve: &'input str,
 }
 
-type Cache<'input> = HashMap<
-    (
-        BTreeSet<&'input str>,
-        u32,
-        u32,
-        &'input str,
-        Option<&'input str>,
-    ),
-    u32,
->;
+type Cache<'input> = HashMap<(BTreeSet<&'input str>, u32, &'input str, Option<&'input str>), u32>;
 
 #[cfg(feature = "multiprocessing")]
 fn max_pressure<'input>(
     flows: &HashMap<&'input str, u32>,
     tunnels: &'input HashMap<&'input str, Vec<String>>,
     open: BTreeSet<&'input str>,
-    current_pressure: u32,
     time_remaining: u32,
     you: ValvePosition<'input>,
     elephant: Option<ValvePosition<'input>>,
@@ -97,7 +85,6 @@ fn max_pressure<'input>(
         flows,
         tunnels,
         open,
-        current_pressure,
         time_remaining,
         you,
         elephant,
@@ -110,12 +97,11 @@ fn max_pressure_inner<'input>(
     flows: &HashMap<&'input str, u32>,
     tunnels: &'input HashMap<&'input str, Vec<String>>,
     open: BTreeSet<&'input str>,
-    current_pressure: u32,
     time_remaining: u32,
     you: ValvePosition<'input>,
     elephant: Option<ValvePosition<'input>>,
 ) -> u32 {
-    let mut max = current_pressure;
+    let mut max = 0;
 
     if time_remaining == 1 || open.len() == flows.len() {
         return max;
@@ -124,21 +110,9 @@ fn max_pressure_inner<'input>(
     let cache_key = if let Some(elephant) = elephant {
         let min = you.valve.min(elephant.valve);
         let max = you.valve.max(elephant.valve);
-        (
-            open.clone(),
-            current_pressure,
-            time_remaining,
-            min,
-            Some(max),
-        )
+        (open.clone(), time_remaining, min, Some(max))
     } else {
-        (
-            open.clone(),
-            current_pressure,
-            time_remaining,
-            you.valve,
-            None,
-        )
+        (open.clone(), time_remaining, you.valve, None)
     };
 
     if let Ok(cache) = cache.read() {
@@ -148,7 +122,6 @@ fn max_pressure_inner<'input>(
     }
     let consider_you = |cache: Arc<RwLock<Cache<'input>>>,
                         open: BTreeSet<&'input str>,
-                        current_pressure: u32,
                         elephant: Option<ValvePosition<'input>>| {
         let your_flow = *flows.get(you.valve).unwrap();
         let mut max = 0;
@@ -156,19 +129,21 @@ fn max_pressure_inner<'input>(
         if your_flow > 0 && !open.contains(you.valve) {
             let mut new_open = open.clone();
             new_open.insert(you.valve);
-            max = max.max(max_pressure_inner(
-                Arc::clone(&cache),
-                flows,
-                tunnels,
-                new_open,
-                current_pressure + your_flow * (time_remaining - 1),
-                time_remaining - 1,
-                ValvePosition {
-                    valve: you.valve,
-                    prev: you.valve,
-                },
-                elephant,
-            ));
+            max = max.max(
+                your_flow * (time_remaining - 1)
+                    + max_pressure_inner(
+                        Arc::clone(&cache),
+                        flows,
+                        tunnels,
+                        new_open,
+                        time_remaining - 1,
+                        ValvePosition {
+                            valve: you.valve,
+                            prev: you.valve,
+                        },
+                        elephant,
+                    ),
+            );
         }
 
         let your_connected_valves = tunnels.get(you.valve).unwrap();
@@ -187,7 +162,6 @@ fn max_pressure_inner<'input>(
                             flows,
                             tunnels,
                             open.clone(),
-                            current_pressure,
                             time_remaining - 1,
                             ValvePosition {
                                 valve,
@@ -209,15 +183,17 @@ fn max_pressure_inner<'input>(
         if elephant_flow > 0 && !open.contains(elephant.valve) {
             let mut new_open = open.clone();
             new_open.insert(elephant.valve);
-            max = max.max(consider_you(
-                Arc::clone(&cache),
-                new_open,
-                current_pressure + elephant_flow * (time_remaining - 1),
-                Some(ValvePosition {
-                    valve: elephant.valve,
-                    prev: elephant.valve,
-                }),
-            ));
+            max = max.max(
+                elephant_flow * (time_remaining - 1)
+                    + consider_you(
+                        Arc::clone(&cache),
+                        new_open,
+                        Some(ValvePosition {
+                            valve: elephant.valve,
+                            prev: elephant.valve,
+                        }),
+                    ),
+            );
         }
 
         let elephant_connected_valves = tunnels.get(elephant.valve).unwrap();
@@ -234,7 +210,6 @@ fn max_pressure_inner<'input>(
                         max.max(consider_you(
                             Arc::clone(&cache),
                             open.clone(),
-                            current_pressure,
                             Some(ValvePosition {
                                 valve,
                                 prev: elephant.valve,
@@ -245,12 +220,7 @@ fn max_pressure_inner<'input>(
                 .reduce(|| max, |acc, val| acc.max(val)),
         );
     } else {
-        max = max.max(consider_you(
-            Arc::clone(&cache),
-            open.clone(),
-            current_pressure,
-            None,
-        ));
+        max = max.max(consider_you(Arc::clone(&cache), open.clone(), None));
     }
 
     if let Ok(mut cache) = cache.write() {
@@ -266,12 +236,12 @@ fn max_pressure_inner<'input>(
 
     max
 }
+
 #[cfg(not(feature = "multiprocessing"))]
 fn max_pressure<'input>(
     flows: &HashMap<&'input str, u32>,
     tunnels: &'input HashMap<&'input str, Vec<String>>,
     open: BTreeSet<&'input str>,
-    current_pressure: u32,
     time_remaining: u32,
     you: ValvePosition<'input>,
     elephant: Option<ValvePosition<'input>>,
@@ -282,7 +252,6 @@ fn max_pressure<'input>(
         flows,
         tunnels,
         open,
-        current_pressure,
         time_remaining,
         you,
         elephant,
@@ -295,12 +264,11 @@ fn max_pressure_inner<'input>(
     flows: &HashMap<&'input str, u32>,
     tunnels: &'input HashMap<&'input str, Vec<String>>,
     open: BTreeSet<&'input str>,
-    current_pressure: u32,
     time_remaining: u32,
     you: ValvePosition<'input>,
     elephant: Option<ValvePosition<'input>>,
 ) -> u32 {
-    let mut max = current_pressure;
+    let mut max = 0;
 
     if time_remaining == 0 || open.len() == flows.len() {
         return max;
@@ -308,7 +276,6 @@ fn max_pressure_inner<'input>(
 
     if let Some(val) = cache.get(&(
         open.clone(),
-        current_pressure,
         time_remaining,
         you.valve,
         elephant.map(|e| e.valve),
@@ -317,26 +284,28 @@ fn max_pressure_inner<'input>(
     }
 
     let mut consider_you = |open: BTreeSet<&'input str>,
-                            current_pressure: u32,
                             elephant: Option<ValvePosition<'input>>| {
+        let mut max = 0;
         let your_flow = *flows.get(you.valve).unwrap();
 
         if your_flow > 0 && !open.contains(you.valve) {
             let mut new_open = open.clone();
             new_open.insert(you.valve);
-            max = max.max(max_pressure_inner(
-                cache,
-                flows,
-                tunnels,
-                new_open,
-                current_pressure + your_flow * (time_remaining - 1),
-                time_remaining - 1,
-                ValvePosition {
-                    valve: you.valve,
-                    prev: you.valve,
-                },
-                elephant,
-            ));
+            max = max.max(
+                your_flow * (time_remaining - 1)
+                    + max_pressure_inner(
+                        cache,
+                        flows,
+                        tunnels,
+                        new_open,
+                        time_remaining - 1,
+                        ValvePosition {
+                            valve: you.valve,
+                            prev: you.valve,
+                        },
+                        elephant,
+                    ),
+            );
         }
 
         let your_connected_valves = tunnels.get(you.valve).unwrap();
@@ -350,7 +319,6 @@ fn max_pressure_inner<'input>(
                 flows,
                 tunnels,
                 open.clone(),
-                current_pressure,
                 time_remaining - 1,
                 ValvePosition {
                     valve,
@@ -359,6 +327,8 @@ fn max_pressure_inner<'input>(
                 elephant,
             ));
         }
+
+        max
     };
 
     if let Some(elephant) = elephant {
@@ -367,13 +337,15 @@ fn max_pressure_inner<'input>(
         if elephant_flow > 0 && !open.contains(elephant.valve) {
             let mut new_open = open.clone();
             new_open.insert(elephant.valve);
-            consider_you(
-                new_open,
-                current_pressure + elephant_flow * (time_remaining - 1),
-                Some(ValvePosition {
-                    valve: elephant.valve,
-                    prev: elephant.valve,
-                }),
+            max = max.max(
+                elephant_flow * (time_remaining - 1)
+                    + consider_you(
+                        new_open,
+                        Some(ValvePosition {
+                            valve: elephant.valve,
+                            prev: elephant.valve,
+                        }),
+                    ),
             );
         }
 
@@ -383,27 +355,20 @@ fn max_pressure_inner<'input>(
                 continue;
             }
 
-            consider_you(
+            max = max.max(consider_you(
                 open.clone(),
-                current_pressure,
                 Some(ValvePosition {
                     valve,
                     prev: elephant.valve,
                 }),
-            );
+            ));
         }
     } else {
-        consider_you(open.clone(), current_pressure, None);
+        max = max.max(consider_you(open.clone(), None));
     }
 
     let prev = cache.insert(
-        (
-            open,
-            current_pressure,
-            time_remaining,
-            you.valve,
-            elephant.map(|e| e.valve),
-        ),
+        (open, time_remaining, you.valve, elephant.map(|e| e.valve)),
         max,
     );
 
