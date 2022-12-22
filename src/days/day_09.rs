@@ -1,6 +1,8 @@
 use std::collections::HashSet;
 use std::str::FromStr;
 
+use crate::direction::Direction;
+
 pub fn main(input: &str) -> (u32, u32) {
     let mut rope1 = Rope::new(2);
     let mut visited1: HashSet<Position> = HashSet::new();
@@ -115,27 +117,5 @@ impl Position {
 
     fn manhattan_distance(&self, other: &Position) -> (i32, i32) {
         (self.0 - other.0, self.1 - other.1)
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
-enum Direction {
-    Up,
-    Down,
-    Left,
-    Right,
-}
-
-impl FromStr for Direction {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "U" => Ok(Direction::Up),
-            "D" => Ok(Direction::Down),
-            "L" => Ok(Direction::Left),
-            "R" => Ok(Direction::Right),
-            s => Err(format!("Invalid direction {s}")),
-        }
     }
 }

@@ -2,6 +2,7 @@ use std::io::{self, Read};
 
 mod coord;
 pub mod days;
+mod direction;
 mod operation;
 mod range;
 
