@@ -6,7 +6,7 @@ pub fn main(input: &str) -> (u32, u32) {
     let mut chunks = input.split("\n\n");
     let map = Map::from_str(chunks.next().unwrap()).unwrap();
 
-    let path = chunks.next().unwrap();
+    let path = chunks.next().unwrap().trim();
     let movements: Vec<Movement> = path
         .split_inclusive(&['L', 'R'])
         .flat_map(|pair| {
@@ -59,24 +59,65 @@ impl Position {
             Movement::Move(mut distance) => {
                 while distance > 0 {
                     let mut pos = self.pos;
+                    let mut facing = self.facing;
+
                     loop {
-                        pos = match self.facing {
+                        pos = match facing {
                             Direction::Up => {
-                                if pos.1 == 0 {
-                                    Coord(pos.0, map.tiles.len() - 1)
+                                if pos.1 <= map.col_ends[pos.0].0 {
+                                    match map_mode {
+                                        MapMode::Flat => Coord(pos.0, map.col_ends[pos.0].1),
+                                        MapMode::Cube => {
+                                            let num_sides_dy =
+                                                (map.col_ends[pos.0].1 - map.col_ends[pos.0].0 + 1)
+                                                    / map.cube_width;
+                                            if num_sides_dy == 4 {
+                                                todo!()
+                                            } else if num_sides_dy == 3 {
+                                                todo!()
+                                            } else if num_sides_dy == 2 {
+                                                todo!()
+                                            } else if num_sides_dy == 1 {
+                                                todo!()
+                                            } else {
+                                                panic!()
+                                            }
+                                        }
+                                    }
                                 } else {
                                     Coord(pos.0, pos.1 - 1)
                                 }
                             }
-                            Direction::Down => Coord(pos.0, (pos.1 + 1) % map.tiles.len()),
+                            Direction::Down => {
+                                if pos.1 >= map.col_ends[pos.0].1 {
+                                    match map_mode {
+                                        MapMode::Flat => Coord(pos.0, map.col_ends[pos.0].0),
+                                        MapMode::Cube => todo!(),
+                                    }
+                                } else {
+                                    Coord(pos.0, pos.1 + 1)
+                                }
+                            }
                             Direction::Left => {
-                                if pos.0 == 0 {
-                                    Coord(map.tiles[pos.1].len(), pos.1)
+                                if pos.0 <= map.row_ends[pos.1].0 {
+                                    match map_mode {
+                                        MapMode::Flat => Coord(map.row_ends[pos.1].1, pos.1),
+                                        MapMode::Cube => todo!(),
+                                    }
                                 } else {
                                     Coord(pos.0 - 1, pos.1)
                                 }
                             }
-                            Direction::Right => Coord((pos.0 + 1) % map.tiles[pos.1].len(), pos.1),
+                            Direction::Right => {
+                                if pos.0 >= map.row_ends[pos.1].1 {
+                                    match map_mode {
+                                        MapMode::Flat => Coord(map.row_ends[pos.1].0, pos.1),
+                                        MapMode::Cube => todo!(),
+                                    }
+                                } else {
+                                    Coord(pos.0 + 1, pos.1)
+                                }
+                            }
                         };
 
                         match map.get(pos) {
@@ -85,12 +126,16 @@ impl Position {
                             }
                             Tile::Empty => {
                                 self.pos = pos;
+                                if map_mode == MapMode::Cube {
+                                    self.facing = facing;
+                                }
                                 break;
                             }
                             Tile::Void => {
-                                if map_mode == MapMode::Folded {
-                                    panic!("shouldn't get a void when folding the map")
+                                if map_mode == MapMode::Cube {
+                                    panic!("no voids in a cube!")
                                 }
+
                                 // if flat, continue loop and wrap around
                             }
                         }
@@ -150,13 +195,15 @@ impl FromStr for Turn {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum MapMode {
     Flat,
-    Folded,
+    Cube,
 }
 
 #[derive(Debug, Clone)]
 struct Map {
     tiles: Vec<Vec<Tile>>,
     row_ends: Vec<(usize, usize)>,
+    col_ends: Vec<(usize, usize)>,
+    cube_width: usize,
 }
 
 impl Map {
@@ -173,21 +220,31 @@ impl FromStr for Map {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut num_tiles = 0;
         let mut row_ends = Vec::new();
+        let mut col_ends = Vec::new();
         let tiles = s
             .lines()
-            .map(|line| {
+            .enumerate()
+            .map(|(y, line)| {
                 let mut start = usize::MAX;
                 let mut end = usize::MIN;
 
                 let row = line
                     .chars()
                     .enumerate()
-                    .map(|(i, c)| {
+                    .map(|(x, c)| {
+                        if col_ends.len() <= x {
+                            col_ends.push((usize::MAX, usize::MIN));
+                        }
+
                         let tile = Tile::try_from(c).unwrap();
                         if tile != Tile::Void {
-                            start = start.min(i);
-                            end = end.max(i);
+                            start = start.min(x);
+                            end = end.max(x);
+                            col_ends[x].0 = col_ends[x].0.min(y);
+                            col_ends[x].1 = col_ends[x].1.max(y);
+                            num_tiles += 1;
                         }
                         tile
                     })
@@ -199,7 +256,12 @@ impl FromStr for Map {
             })
             .collect();
 
-        Ok(Map { tiles, row_ends })
+        Ok(Map {
+            tiles,
+            row_ends,
+            col_ends,
+            cube_width: num_tiles / 6,
+        })
     }
 }
 
