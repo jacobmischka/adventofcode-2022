@@ -5,6 +5,8 @@ use std::{
     str::FromStr,
 };
 
+use crate::direction::Direction;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Coord<T>(pub T, pub T);
 
@@ -32,6 +34,29 @@ impl Coord<i64> {
         let f = ((difference.0 * difference.0) + (difference.1 * difference.1)) as f64;
 
         f.sqrt()
+    }
+
+    /// Works when directions increment up -> down, left -> right
+    pub fn move_direction_udlr(self, direction: Direction, distance: i64) -> Coord<i64> {
+        match direction {
+            Direction::Up => Coord(self.0, self.1 - distance),
+            Direction::Down => Coord(self.0, self.1 + distance),
+            Direction::Left => Coord(self.0 - distance, self.1),
+            Direction::Right => Coord(self.0 + distance, self.1),
+        }
+    }
+
+    pub fn adjacent_coords_include_diag(self) -> [Self; 8] {
+        [
+            Coord(self.0, self.1 - 1),
+            Coord(self.0 + 1, self.1 - 1),
+            Coord(self.0 + 1, self.1),
+            Coord(self.0 + 1, self.1 + 1),
+            Coord(self.0, self.1 + 1),
+            Coord(self.0 - 1, self.1 + 1),
+            Coord(self.0 - 1, self.1),
+            Coord(self.0 - 1, self.1 - 1),
+        ]
     }
 }
 

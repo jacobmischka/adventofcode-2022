@@ -25,6 +25,21 @@ impl PartialOrd for Range {
     }
 }
 
+impl From<Range> for std::ops::RangeInclusive<i64> {
+    fn from(range: Range) -> Self {
+        (range.0)..=(range.1)
+    }
+}
+
+impl IntoIterator for Range {
+    type Item = i64;
+    type IntoIter = std::ops::RangeInclusive<i64>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.into()
+    }
+}
+
 impl Range {
     pub fn new(l: i64, r: i64) -> Result<Self, String> {
         if l > r {
@@ -59,6 +74,11 @@ impl Range {
         } else {
             (l, Some(r))
         }
+    }
+
+    pub fn add_point(&mut self, point: i64) {
+        self.0 = self.0.min(point);
+        self.1 = self.1.max(point);
     }
 }
 

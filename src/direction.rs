@@ -8,6 +8,17 @@ pub enum Direction {
     Right,
 }
 
+impl Direction {
+    pub fn all() -> &'static [Direction] {
+        &[
+            Direction::Up,
+            Direction::Down,
+            Direction::Left,
+            Direction::Right,
+        ]
+    }
+}
+
 impl FromStr for Direction {
     type Err = String;
 
