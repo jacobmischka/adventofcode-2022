@@ -36,16 +36,6 @@ impl Coord<i64> {
         f.sqrt()
     }
 
-    /// Works when directions increment up -> down, left -> right
-    pub fn move_direction_udlr(self, direction: Direction, distance: i64) -> Coord<i64> {
-        match direction {
-            Direction::Up => Coord(self.0, self.1 - distance),
-            Direction::Down => Coord(self.0, self.1 + distance),
-            Direction::Left => Coord(self.0 - distance, self.1),
-            Direction::Right => Coord(self.0 + distance, self.1),
-        }
-    }
-
     pub fn adjacent_coords_include_diag(self) -> [Self; 8] {
         [
             Coord(self.0, self.1 - 1),
@@ -74,6 +64,16 @@ where
         + Hash
         + Default,
 {
+    /// Works when directions increment up -> down, left -> right
+    pub fn move_direction_udlr(self, direction: Direction, distance: T) -> Coord<T> {
+        match direction {
+            Direction::Up => Coord(self.0, self.1 - distance),
+            Direction::Down => Coord(self.0, self.1 + distance),
+            Direction::Left => Coord(self.0 - distance, self.1),
+            Direction::Right => Coord(self.0 + distance, self.1),
+        }
+    }
+
     pub fn manhattan_distance(&self, other: Coord<T>) -> T {
         let x_diff = if self.0 < other.0 {
             other.0 - self.0
