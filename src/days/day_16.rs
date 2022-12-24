@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 #[cfg(feature = "multiprocessing")]
 use std::sync::{Arc, RwLock};
@@ -69,6 +69,72 @@ struct ValvePosition<'input> {
     valve: &'input str,
 }
 
+fn get_adjacency_matrix<'input>(
+    flows: &'input HashMap<&'input str, u32>,
+    tunnels: &'input HashMap<&'input str, Vec<String>>,
+) -> HashMap<&'input str, HashMap<&'input str, u32>> {
+    let mut adjacency_matrix: HashMap<&'input str, HashMap<&'input str, u32>> = HashMap::new();
+    let valves_with_flows: Vec<&'input str> = flows
+        .iter()
+        .filter_map(|(valve, flow)| if *flow > 0 { Some(*valve) } else { None })
+        .collect();
+
+    for source in tunnels.keys().copied() {
+        let mut dist: HashMap<&'input str, u32> = HashMap::new();
+        let mut prev: HashMap<&'input str, &'input str> = HashMap::new();
+        let mut queue: HashSet<&'input str> = HashSet::new();
+
+        for valve in tunnels.keys().copied() {
+            dist.insert(valve, u32::MAX);
+            queue.insert(valve);
+        }
+        dist.insert(source, 0);
+
+        while !queue.is_empty() {
+            let (valve, valve_dist) = queue.iter().copied().fold(("", u32::MAX), |acc, valve| {
+                let valve_dist = *dist.get(valve).unwrap();
+                if valve_dist < acc.1 {
+                    (valve, valve_dist)
+                } else {
+                    acc
+                }
+            });
+
+            queue.remove(valve);
+
+            for neighbor in tunnels.get(valve).unwrap() {
+                let neighbor = neighbor.as_str();
+                if !queue.contains(neighbor) {
+                    continue;
+                }
+
+                let alt = valve_dist + 1;
+                if alt < *dist.get(neighbor).unwrap() {
+                    dist.insert(neighbor, alt);
+                    prev.insert(neighbor, valve);
+                }
+            }
+        }
+
+        for dest in valves_with_flows.iter().copied() {
+            let mut dist = 0;
+            let mut u = Some(dest);
+
+            while let Some(valve) = u {
+                dist += 1;
+                u = prev.get(valve).copied();
+            }
+
+            adjacency_matrix
+                .entry(source)
+                .or_default()
+                .insert(dest, dist);
+        }
+    }
+
+    adjacency_matrix
+}
+
 type Cache<'input> = HashMap<(BTreeSet<&'input str>, u32, &'input str, Option<&'input str>), u32>;
 
 #[cfg(feature = "multiprocessing")]
@@ -80,11 +146,25 @@ fn max_pressure<'input>(
     you: ValvePosition<'input>,
     elephant: Option<ValvePosition<'input>>,
 ) -> u32 {
+    let adjacency_matrix = get_adjacency_matrix(&flows, &tunnels);
+
+    let closed: BTreeSet<&str> = flows
+        .iter()
+        .filter_map(|(valve, flow)| {
+            if *flow > 0 && !open.contains(valve) {
+                Some(*valve)
+            } else {
+                None
+            }
+        })
+        .collect();
+
     max_pressure_inner(
         Arc::new(RwLock::new(HashMap::new())),
         flows,
         tunnels,
-        open,
+        &adjacency_matrix,
+        closed,
         time_remaining,
         you,
         elephant,
@@ -96,23 +176,24 @@ fn max_pressure_inner<'input>(
     cache: Arc<RwLock<Cache<'input>>>,
     flows: &HashMap<&'input str, u32>,
     tunnels: &'input HashMap<&'input str, Vec<String>>,
-    open: BTreeSet<&'input str>,
+    adjacency_matrix: &'input HashMap<&'input str, HashMap<&'input str, u32>>,
+    closed: BTreeSet<&'input str>,
     time_remaining: u32,
     you: ValvePosition<'input>,
     elephant: Option<ValvePosition<'input>>,
 ) -> u32 {
     let mut max = 0;
 
-    if time_remaining == 1 || open.len() == flows.len() {
+    if time_remaining == 1 || closed.is_empty() {
         return max;
     }
 
     let cache_key = if let Some(elephant) = elephant {
         let min = you.valve.min(elephant.valve);
         let max = you.valve.max(elephant.valve);
-        (open.clone(), time_remaining, min, Some(max))
+        (closed.clone(), time_remaining, min, Some(max))
     } else {
-        (open.clone(), time_remaining, you.valve, None)
+        (closed.clone(), time_remaining, you.valve, None)
     };
 
     if let Ok(cache) = cache.read() {
@@ -120,22 +201,24 @@ fn max_pressure_inner<'input>(
             return *val;
         }
     }
+
     let consider_you = |cache: Arc<RwLock<Cache<'input>>>,
-                        open: BTreeSet<&'input str>,
+                        closed: BTreeSet<&'input str>,
                         elephant: Option<ValvePosition<'input>>| {
         let your_flow = *flows.get(you.valve).unwrap();
         let mut max = 0;
 
-        if your_flow > 0 && !open.contains(you.valve) {
-            let mut new_open = open.clone();
-            new_open.insert(you.valve);
+        if your_flow > 0 && closed.contains(you.valve) {
+            let mut new_closed = closed.clone();
+            new_closed.remove(you.valve);
             max = max.max(
                 your_flow * (time_remaining - 1)
                     + max_pressure_inner(
                         Arc::clone(&cache),
                         flows,
                         tunnels,
-                        new_open,
+                        adjacency_matrix,
+                        new_closed,
                         time_remaining - 1,
                         ValvePosition {
                             valve: you.valve,
@@ -144,6 +227,17 @@ fn max_pressure_inner<'input>(
                         elephant,
                     ),
             );
+        }
+
+        if closed.iter().copied().all(|closed| {
+            *adjacency_matrix
+                .get(you.valve)
+                .unwrap()
+                .get(closed)
+                .unwrap()
+                > time_remaining
+        }) {
+            return max;
         }
 
         let your_connected_valves = tunnels.get(you.valve).unwrap();
@@ -161,7 +255,8 @@ fn max_pressure_inner<'input>(
                             Arc::clone(&cache),
                             flows,
                             tunnels,
-                            open.clone(),
+                            adjacency_matrix,
+                            closed.clone(),
                             time_remaining - 1,
                             ValvePosition {
                                 valve,
@@ -180,14 +275,14 @@ fn max_pressure_inner<'input>(
     if let Some(elephant) = elephant {
         let elephant_flow = *flows.get(elephant.valve).unwrap();
 
-        if elephant_flow > 0 && !open.contains(elephant.valve) {
-            let mut new_open = open.clone();
-            new_open.insert(elephant.valve);
+        if elephant_flow > 0 && closed.contains(elephant.valve) {
+            let mut new_closed = closed.clone();
+            new_closed.remove(elephant.valve);
             max = max.max(
                 elephant_flow * (time_remaining - 1)
                     + consider_you(
                         Arc::clone(&cache),
-                        new_open,
+                        new_closed,
                         Some(ValvePosition {
                             valve: elephant.valve,
                             prev: elephant.valve,
@@ -196,31 +291,49 @@ fn max_pressure_inner<'input>(
             );
         }
 
-        let elephant_connected_valves = tunnels.get(elephant.valve).unwrap();
-        max = max.max(
-            elephant_connected_valves
-                .par_iter()
-                .fold(
-                    || max,
-                    |max, valve| {
-                        if valve == elephant.prev {
-                            return max;
-                        }
+        if closed.iter().copied().all(|closed| {
+            *adjacency_matrix
+                .get(elephant.valve)
+                .unwrap()
+                .get(closed)
+                .unwrap()
+                > time_remaining
+        }) {
+            max = max.max(consider_you(
+                Arc::clone(&cache),
+                closed,
+                Some(ValvePosition {
+                    valve: elephant.valve,
+                    prev: elephant.valve,
+                }),
+            ))
+        } else {
+            let elephant_connected_valves = tunnels.get(elephant.valve).unwrap();
+            max = max.max(
+                elephant_connected_valves
+                    .par_iter()
+                    .fold(
+                        || max,
+                        |max, valve| {
+                            if valve == elephant.prev {
+                                return max;
+                            }
 
-                        max.max(consider_you(
-                            Arc::clone(&cache),
-                            open.clone(),
-                            Some(ValvePosition {
-                                valve,
-                                prev: elephant.valve,
-                            }),
-                        ))
-                    },
-                )
-                .reduce(|| max, |acc, val| acc.max(val)),
-        );
+                            max.max(consider_you(
+                                Arc::clone(&cache),
+                                closed.clone(),
+                                Some(ValvePosition {
+                                    valve,
+                                    prev: elephant.valve,
+                                }),
+                            ))
+                        },
+                    )
+                    .reduce(|| max, |acc, val| acc.max(val)),
+            );
+        }
     } else {
-        max = max.max(consider_you(Arc::clone(&cache), open.clone(), None));
+        max = max.max(consider_you(Arc::clone(&cache), closed, None));
     }
 
     if let Ok(mut cache) = cache.write() {
