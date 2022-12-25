@@ -88,9 +88,4 @@ fn mixing_works() {
         mix_coords(&vec![4, -2, 5, 6, 7, 8, 11], 1),
         vec![4, 7, -2, 11, 5, 8, 6]
     );
-
-    assert_eq!(
-        mix_coords(&vec![4, -2, 5, 6, 7, 8, 9], 1),
-        vec![4, -2, 5, 8, 6, 7, 9]
-    );
 }
