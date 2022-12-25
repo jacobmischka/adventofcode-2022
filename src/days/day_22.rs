@@ -2,6 +2,33 @@ use std::str::FromStr;
 
 use crate::{coord::Coord, direction::Direction};
 
+/*
+
+This will only work for this input variant:
+https://preview.redd.it/jw5h94vwlo7a1.png?width=448&format=png&auto=webp&s=462d8eddb12c611e412129d709f837ced768d692
+
+        c    d
+
+       11112222
+       11112222
+     b 11112222 g
+       11112222
+       3333
+     a 3333 h
+    a  3333
+       3333
+   44445555
+ b 44445555 g
+   44445555
+   44445555
+   6666
+ c 6666 f
+   6666
+   6666
+
+     d
+*/
+
 pub fn main(input: &str) -> (u32, u32) {
     let mut chunks = input.split("\n\n");
     let map = Map::from_str(chunks.next().unwrap()).unwrap();
@@ -68,20 +95,7 @@ impl Position {
                                     match map_mode {
                                         MapMode::Flat => Coord(pos.0, map.col_ends[pos.0].1),
                                         MapMode::Cube => {
-                                            let num_sides_dy =
-                                                (map.col_ends[pos.0].1 - map.col_ends[pos.0].0 + 1)
-                                                    / map.cube_width;
-                                            if num_sides_dy == 4 {
-                                                todo!()
-                                            } else if num_sides_dy == 3 {
-                                                todo!()
-                                            } else if num_sides_dy == 2 {
-                                                todo!()
-                                            } else if num_sides_dy == 1 {
-                                                todo!()
-                                            } else {
-                                                panic!()
-                                            }
+                                            todo!()
                                         }
                                     }
                                 } else {
@@ -92,7 +106,9 @@ impl Position {
                                 if pos.1 >= map.col_ends[pos.0].1 {
                                     match map_mode {
                                         MapMode::Flat => Coord(pos.0, map.col_ends[pos.0].0),
-                                        MapMode::Cube => todo!(),
+                                        MapMode::Cube => {
+                                            todo!()
+                                        }
                                     }
                                 } else {
                                     Coord(pos.0, pos.1 + 1)
@@ -102,7 +118,9 @@ impl Position {
                                 if pos.0 <= map.row_ends[pos.1].0 {
                                     match map_mode {
                                         MapMode::Flat => Coord(map.row_ends[pos.1].1, pos.1),
-                                        MapMode::Cube => todo!(),
+                                        MapMode::Cube => {
+                                            todo!()
+                                        }
                                     }
                                 } else {
                                     Coord(pos.0 - 1, pos.1)
@@ -112,7 +130,9 @@ impl Position {
                                 if pos.0 >= map.row_ends[pos.1].1 {
                                     match map_mode {
                                         MapMode::Flat => Coord(map.row_ends[pos.1].0, pos.1),
-                                        MapMode::Cube => todo!(),
+                                        MapMode::Cube => {
+                                            todo!()
+                                        }
                                     }
                                 } else {
                                     Coord(pos.0 + 1, pos.1)
@@ -126,14 +146,12 @@ impl Position {
                             }
                             Tile::Empty => {
                                 self.pos = pos;
-                                if map_mode == MapMode::Cube {
-                                    self.facing = facing;
-                                }
+                                self.facing = facing;
                                 break;
                             }
                             Tile::Void => {
                                 if map_mode == MapMode::Cube {
-                                    panic!("no voids in a cube!")
+                                    unreachable!("no voids in a cube!")
                                 }
 
                                 // if flat, continue loop and wrap around
